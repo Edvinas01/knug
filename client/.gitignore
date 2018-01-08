@@ -1,0 +1,9 @@
+# Dependencies
+/node_modules
+
+# Builds
+/build
+
+# Dev tools
+.idea
+*.iml
