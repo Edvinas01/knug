@@ -4,7 +4,9 @@ const dummyWorld = {
     height: 2000,
   },
   entities: {
-    player: {
+    players: [{
+      controlled: true,
+      name: 'James',
       position: {
         x: 1000,
         y: 1000,
@@ -13,7 +15,17 @@ const dummyWorld = {
         width: 64,
         height: 64,
       },
-    },
+    }, {
+      name: 'Jeff',
+      position: {
+        x: 500,
+        y: 500,
+      },
+      size: {
+        width: 128,
+        height: 128,
+      },
+    }],
     polygons: [{
       points: [
         { x: 100, y: 100 },

@@ -36,6 +36,35 @@ const createPolygonMask = (game, polygons) => {
 };
 
 /**
+ * Add a new player with a sprite.
+ */
+const addPlayer = (game, fixture) => {
+  const player = game.add.sprite(
+    fixture.position.x,
+    fixture.position.y,
+    'borker',
+  );
+
+  const name = game.add.text(0, 0, fixture.name, {
+    font: '24px Arial',
+    fill: '#ffffff',
+    align: 'center',
+  });
+
+  name.setShadow(0, 0, 'rgba(0,0,0,1)', 5);
+  name.anchor.set(0.5);
+
+  player.width = fixture.size.width;
+  player.height = fixture.size.height;
+  player.anchor = new Point(0.5, 0.5);
+  player.userData = {
+    name,
+  };
+
+  return player;
+};
+
+/**
  * Main game state.
  */
 class PlayState extends State {
@@ -55,7 +84,7 @@ class PlayState extends State {
 
   create() {
     const { entities, size: worldSize } = this.worldFixture;
-    const { player: playerFixture } = entities;
+    const { players } = entities;
 
     // Setup world.
     this.game.world.setBounds(
@@ -75,23 +104,21 @@ class PlayState extends State {
 
     this.game.physics.startSystem(Physics.P2JS);
 
-    // Setup player.
-    const player = this.game.add.sprite(
-      playerFixture.position.x,
-      playerFixture.position.y,
-      'borker',
-    );
+    // Setup players.
+    this.players = players.map((fixture) => {
+      const player = addPlayer(this.game, fixture);
+      this.game.physics.p2.enable(player);
 
-    player.width = playerFixture.size.width;
-    player.height = playerFixture.size.height;
-    player.anchor = new Point(0.5, 0.5);
+      if (fixture.controlled) {
+        this.game.camera.follow(player, Camera.FOLLOW_LOCKON, 0.1, 0.1);
+        this.player = player;
+      }
+      return player;
+    });
 
-    this.game.physics.p2.enable(player);
-    this.game.camera.follow(player, Camera.FOLLOW_LOCKON, 0.1, 0.1);
+    this.players.forEach(player => player.userData.name.bringToTop());
 
-    this.player = player;
-
-    // Setup other world entities.
+    // Setup static polygons.
     createPolygonMask(this.game, entities.polygons);
 
     // Setup controls.
@@ -103,6 +130,13 @@ class PlayState extends State {
   update() {
     const { cursors } = this.controls;
     const { body } = this.player;
+
+    // Make names follow players.
+    this.players.forEach((player) => {
+      const { name } = player.userData;
+      name.x = player.x;
+      name.y = player.y - name.height - (player.height / 2);
+    });
 
     if (cursors.up.isDown) {
       body.moveUp(300);
