@@ -14,11 +14,15 @@ const dummyWorld = {
         height: 64,
       },
     },
-    polygons: [
-      {
-        points: [],
-      },
-    ],
+    polygons: [{
+      points: [
+        { x: 100, y: 100 },
+        { x: 300, y: 100 },
+        { x: 200, y: 200 },
+        { x: 300, y: 300 },
+        { x: 100, y: 300 },
+      ],
+    }],
   },
 };
 

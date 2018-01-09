@@ -1,6 +1,41 @@
 import { State, Point, Physics, Camera } from 'phaser';
 
 /**
+ * Create a mask for provided array of polygons.
+ */
+const createPolygonMask = (game, polygons) => {
+  const outline = game.add.graphics(0, 0);
+  const mask = game.add.graphics(0, 0);
+
+  outline.lineStyle(4, 0x000000);
+  mask.beginFill(0xffffff);
+
+  polygons.forEach((polygon) => {
+    const firstPoint = polygon.points[0];
+    const points = [...polygon.points, ...[firstPoint]].map(point => new Point(
+      point.x,
+      point.y,
+    ));
+
+    outline.drawPolygon(points);
+    mask.drawPolygon(points);
+
+    const sprite = game.add.tileSprite(
+      0,
+      0,
+      game.world.width,
+      game.world.height,
+      'paper',
+    );
+
+    sprite.mask = mask;
+  });
+
+  outline.endFill();
+  mask.endFill();
+};
+
+/**
  * Main game state.
  */
 class PlayState extends State {
@@ -15,6 +50,7 @@ class PlayState extends State {
     this.game.load.image('background', 'assets/images/grid.png');
     this.game.load.image('borker', 'assets/images/borker.png');
     this.game.load.image('player', 'assets/images/arrow.png');
+    this.game.load.image('paper', 'assets/images/paper.png');
   }
 
   create() {
@@ -55,6 +91,9 @@ class PlayState extends State {
 
     this.player = player;
 
+    // Setup other world entities.
+    createPolygonMask(this.game, entities.polygons);
+
     // Setup controls.
     this.controls = {
       cursors: this.game.input.keyboard.createCursorKeys(),
@@ -77,6 +116,10 @@ class PlayState extends State {
     if (cursors.right.isDown) {
       body.moveRight(300);
     }
+  }
+
+  render() {
+    this.game.debug.pointer(this.game.input.activePointer);
   }
 
   /**
