@@ -71,7 +71,7 @@ class PlayState extends State {
   constructor(props) {
     super();
 
-    this.worldFixture = props.worldFixture;
+    this.initialState = props.initialState;
     this.webSocket = props.webSocket;
   }
 
@@ -83,33 +83,33 @@ class PlayState extends State {
   }
 
   create() {
-    const { entities, size: worldSize } = this.worldFixture;
+    const { entities, world } = this.initialState;
     const { players } = entities;
 
     // Setup world.
     this.game.world.setBounds(
       0,
       0,
-      worldSize.width,
-      worldSize.height,
+      world.size.width,
+      world.size.height,
     );
 
     this.game.add.tileSprite(
       0,
       0,
-      worldSize.width,
-      worldSize.height,
+      world.size.width,
+      world.size.height,
       'background',
     );
 
     this.game.physics.startSystem(Physics.P2JS);
 
     // Setup players.
-    this.players = players.map((fixture) => {
-      const player = addPlayer(this.game, fixture);
+    this.players = players.map((playerState) => {
+      const player = addPlayer(this.game, playerState);
       this.game.physics.p2.enable(player);
 
-      if (fixture.controlled) {
+      if (playerState.controlled) {
         this.game.camera.follow(player, Camera.FOLLOW_LOCKON, 0.1, 0.1);
         this.player = player;
       }
@@ -138,6 +138,14 @@ class PlayState extends State {
       name.y = player.y - name.height - (player.height / 2);
     });
 
+    this.webSocket.send(JSON.stringify({
+      type: 'input',
+      up: cursors.up.isDown,
+      down: cursors.down.isDown,
+      left: cursors.left.isDown,
+      right: cursors.right.isDown,
+    }));
+
     if (cursors.up.isDown) {
       body.moveUp(300);
     }
@@ -159,9 +167,12 @@ class PlayState extends State {
   /**
    * Handle parsed event message.
    */
-  static handleMessage(message) {
+  handleMessage(message) {
     if (message.type === 'debug') {
       console.log(message);
+    } else if (message.type === 'state') {
+      const { players } = message;
+      console.log(players);
     }
   }
 }

@@ -1,8 +1,9 @@
-# Dependencies
-node_modules/
+# Gradle
+.gradle/
 
 # Builds
 build/
+out/
 
 # Dev tools
 .idea/

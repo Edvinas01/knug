@@ -1,45 +1,4 @@
-const dummyWorld = {
-  size: {
-    width: 2000,
-    height: 2000,
-  },
-  entities: {
-    players: [{
-      controlled: true,
-      name: 'James',
-      position: {
-        x: 1000,
-        y: 1000,
-      },
-      size: {
-        width: 64,
-        height: 64,
-      },
-    }, {
-      name: 'Jeff',
-      position: {
-        x: 500,
-        y: 500,
-      },
-      size: {
-        width: 128,
-        height: 128,
-      },
-    }],
-    polygons: [{
-      points: [
-        { x: 100, y: 100 },
-        { x: 300, y: 100 },
-        { x: 200, y: 200 },
-        { x: 300, y: 300 },
-        { x: 100, y: 300 },
-      ],
-    }],
-  },
-};
-
-const useDummyWorld = true;
-const socketUrl = `ws://${process.env.REACT_APP_BACKEND_HOST}/game?username=CoolGuy`;
+const socketUrl = `ws://${process.env.REACT_APP_BACKEND_HOST}/game?name=Bar`;
 
 /**
  * Setup and start the game.
@@ -62,11 +21,9 @@ const startGame = (canvasWrapper) => {
   webSocket.onmessage = (payload) => {
     const data = JSON.parse(payload.data);
 
-    if (playState === null && (data.type === 'setup' || useDummyWorld)) {
+    if (playState === null && (data.type === 'setup')) {
       playState = new PlayState({
-        worldFixture: useDummyWorld
-          ? dummyWorld
-          : data,
+        initialState: data,
         webSocket,
       });
 
@@ -76,7 +33,7 @@ const startGame = (canvasWrapper) => {
       // No point in spamming errors if engine failed to setup.
       webSocket.close(1000, 'Cannot handle messages while engine is not initialized');
     } else {
-      PlayState.handleMessage(data);
+      playState.handleMessage(data);
     }
   };
 
