@@ -3,12 +3,13 @@ package com.edd.knug
 import com.edd.knug.messaging.events.ConnectEvent
 import com.edd.knug.messaging.events.DisconnectEvent
 import com.edd.knug.messaging.Messaging
-import com.edd.knug.game.player.PlayerManager
-import com.edd.knug.game.player.PlayerRegistry
+import com.edd.knug.player.PlayerManager
+import com.edd.knug.player.PlayerRegistry
 import com.edd.knug.messaging.events.InputEvent
 import com.edd.knug.util.*
-import com.edd.knug.websocket.GameWebSocketHandler
+import com.edd.knug.websockets.GameWebSocketHandler
 import com.edd.knug.util.loop.FixedTimeStepLoop
+import com.edd.knug.websockets.MessageSender
 import org.dyn4j.dynamics.World
 import org.dyn4j.geometry.Vector2
 import spark.Spark.*
@@ -21,18 +22,16 @@ fun main(args: Array<String>) {
     val messaging = Messaging()
     val json = Json()
 
-    val playerManager = PlayerManager(world, json)
+    val playerManager = PlayerManager(world)
     val playerRegistry = PlayerRegistry(playerManager)
+    val sender = MessageSender(playerRegistry, json)
 
     // Initialize event listeners.
     messaging.listen<ConnectEvent> { (session, remote) ->
-        val player = playerRegistry.add(session)
-
-        val body = player.body
-        val transform = body.transform
+        val player = playerRegistry.add(session, remote)
 
         // TODO: remove test world sending, use concrete class.
-        remote.sendString(json.write {
+        sender.send(player, json.write {
             "type" to "setup"
             "world" to json {
                 "size" to json {
@@ -41,28 +40,27 @@ fun main(args: Array<String>) {
                 }
             }
             "entities" to json {
-                "players" to arrayOf(json {
-                    "controlled" to true
-                    "name" to player.name
-                    "position" to json {
-                        "x" to transform.translationX.visualUnits
-                        "y" to transform.translationY.visualUnits
+                "players" to playerRegistry.getPlayers().map {
+                    val body = it.body
+                    val transform = body.transform
+                    val controlled = it.id == player.id
+
+                    json {
+
+                        // Are we controlling this player?
+                        "controlled" to controlled
+                        "name" to it.name
+                        "id" to it.id
+                        "position" to json {
+                            "x" to transform.translationX.visualUnits
+                            "y" to transform.translationY.visualUnits
+                        }
+                        "size" to json {
+                            "width" to PLAYER_WIDTH
+                            "height" to PLAYER_HEIGHT
+                        }
                     }
-                    "size" to json {
-                        "width" to PLAYER_WIDTH
-                        "height" to PLAYER_HEIGHT
-                    }
-                }, json {
-                    "name" to "Jeff"
-                    "position" to json {
-                        "x" to 500
-                        "y" to 500
-                    }
-                    "size" to json {
-                        "width" to 128
-                        "height" to 128
-                    }
-                })
+                }
                 "polygons" to arrayOf(json {
                     "points" to arrayOf(json {
                         "x" to 100
@@ -90,7 +88,7 @@ fun main(args: Array<String>) {
     }
 
     messaging.listen<InputEvent> {
-        playerRegistry[it.session]?.also { player ->
+        playerRegistry.getPlayer(it.session)?.also { player ->
             player.movingUp = it.up
             player.movingDown = it.down
             player.movingLeft = it.left
@@ -99,19 +97,30 @@ fun main(args: Array<String>) {
     }
 
     // Main game handler thread.
-    Thread(FixedTimeStepLoop(1, {
-
-        // World simulation must be ran first, as other steps depend on its results.
+    Thread(FixedTimeStepLoop(20, {
         world.update(it)
 
-        // Each player might produce an event, so gotta handle each player before message
-        // processing.
-        playerRegistry.sessions.forEach {
-            playerManager.update(it.key.remote, playerRegistry.sessions.values, it.value)
-        }
+        playerManager.update(playerRegistry.getPlayers())
 
-        // Lastly, all events produced by players or world can be handled.
         messaging.process()
+
+        // TODO: move this else where, use concrete class.
+        playerRegistry.getPlayers().forEach {
+            val transform = it.body.transform
+
+            sender.send(it, json.write {
+                "type" to "state"
+                "players" to arrayOf(json {
+                    "name" to it.name
+                    "id" to it.id
+                    "position" to json {
+                        "x" to transform.translationX.visualUnits
+                        "y" to transform.translationY.visualUnits
+                    }
+                    "rotation" to transform.rotation
+                })
+            })
+        }
 
     }), "game-loop").start()
 

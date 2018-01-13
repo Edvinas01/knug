@@ -1,4 +1,4 @@
-import { State, Point, Physics, Camera } from 'phaser';
+import { State, Point, Camera, Math } from 'phaser';
 
 /**
  * Create a mask for provided array of polygons.
@@ -38,14 +38,15 @@ const createPolygonMask = (game, polygons) => {
 /**
  * Add a new player with a sprite.
  */
-const addPlayer = (game, fixture) => {
+const addPlayer = (game, state) => {
+  const { position } = state;
   const player = game.add.sprite(
-    fixture.position.x,
-    fixture.position.y,
+    position.x,
+    position.y,
     'borker',
   );
 
-  const name = game.add.text(0, 0, fixture.name, {
+  const name = game.add.text(0, 0, state.name, {
     font: '24px Arial',
     fill: '#ffffff',
     align: 'center',
@@ -54,11 +55,17 @@ const addPlayer = (game, fixture) => {
   name.setShadow(0, 0, 'rgba(0,0,0,1)', 5);
   name.anchor.set(0.5);
 
-  player.width = fixture.size.width;
-  player.height = fixture.size.height;
+  player.width = state.size.width;
+  player.height = state.size.height;
   player.anchor = new Point(0.5, 0.5);
   player.userData = {
     name,
+    id: state.id,
+    desiredPos: {
+      x: position.x,
+      y: position.y,
+    },
+    desiredRot: 0,
   };
 
   return player;
@@ -73,6 +80,7 @@ class PlayState extends State {
 
     this.initialState = props.initialState;
     this.webSocket = props.webSocket;
+    this.players = {};
   }
 
   preload() {
@@ -102,21 +110,22 @@ class PlayState extends State {
       'background',
     );
 
-    this.game.physics.startSystem(Physics.P2JS);
-
     // Setup players.
-    this.players = players.map((playerState) => {
-      const player = addPlayer(this.game, playerState);
-      this.game.physics.p2.enable(player);
+    this.players = players.reduce((res, state) => {
+      const player = addPlayer(this.game, state);
 
-      if (playerState.controlled) {
+      if (state.controlled) {
         this.game.camera.follow(player, Camera.FOLLOW_LOCKON, 0.1, 0.1);
         this.player = player;
       }
-      return player;
-    });
 
-    this.players.forEach(player => player.userData.name.bringToTop());
+      res[state.id] = player;
+      return res;
+    }, {});
+
+    Object.keys(this.players).forEach((id) => {
+      this.players[id].userData.name.bringToTop();
+    });
 
     // Setup static polygons.
     createPolygonMask(this.game, entities.polygons);
@@ -129,14 +138,22 @@ class PlayState extends State {
 
   update() {
     const { cursors } = this.controls;
-    const { body } = this.player;
 
-    // Make names follow players.
-    this.players.forEach((player) => {
-      const { name } = player.userData;
+    Object.keys(this.players).forEach((id) => {
+      const player = this.players[id];
+      const { desiredPos, desiredRot, name } = player.userData;
+
+      // Sync with server state.
+      // https://gafferongames.com/post/snapshot_interpolation/
+      player.rotation = Math.rotateToAngle(player.rotation, desiredRot);
+      player.x = Math.bezierInterpolation([player.x, desiredPos.x], 0.05);
+      player.y = Math.bezierInterpolation([player.y, desiredPos.y], 0.05);
+
+      // Make names follow players.
       name.x = player.x;
       name.y = player.y - name.height - (player.height / 2);
     });
+
 
     this.webSocket.send(JSON.stringify({
       type: 'input',
@@ -145,19 +162,6 @@ class PlayState extends State {
       left: cursors.left.isDown,
       right: cursors.right.isDown,
     }));
-
-    if (cursors.up.isDown) {
-      body.moveUp(300);
-    }
-    if (cursors.down.isDown) {
-      body.moveDown(300);
-    }
-    if (cursors.left.isDown) {
-      body.moveLeft(300);
-    }
-    if (cursors.right.isDown) {
-      body.moveRight(300);
-    }
   }
 
   render() {
@@ -171,8 +175,21 @@ class PlayState extends State {
     if (message.type === 'debug') {
       console.log(message);
     } else if (message.type === 'state') {
-      const { players } = message;
-      console.log(players);
+      message.players.forEach((remote) => {
+        const existing = this.players[remote.id];
+
+        if (existing) {
+          const { rotation, position } = remote;
+          existing.userData = {
+            ...existing.userData,
+            desiredPos: {
+              x: position.x,
+              y: this.game.world.height - position.y,
+            },
+            desiredRot: rotation,
+          };
+        }
+      });
     }
   }
 }

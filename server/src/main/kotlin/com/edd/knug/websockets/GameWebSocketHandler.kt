@@ -1,4 +1,4 @@
-package com.edd.knug.websocket
+package com.edd.knug.websockets
 
 import com.edd.knug.messaging.events.ConnectEvent
 import com.edd.knug.messaging.events.DisconnectEvent
@@ -19,6 +19,9 @@ class GameWebSocketHandler(
     }
 
     override fun onWebSocketText(message: String) {
+        if (session == null) {
+            return
+        }
 
         // TODO: better type handling should be done, also find a way to avoid using copy.
         if (message.contains("input")) {

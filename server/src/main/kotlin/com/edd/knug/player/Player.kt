@@ -1,4 +1,4 @@
-package com.edd.knug.game.player
+package com.edd.knug.player
 
 import org.dyn4j.dynamics.Body
 
