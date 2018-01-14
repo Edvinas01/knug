@@ -8,6 +8,16 @@ package com.edd.knug.util
 const val WEB_SOCKET_ENDPOINT = "/game"
 
 /**
+ * Timeout for idle web-socket connections in millis.
+ */
+const val SESSION_IDLE_TIMEOUT = 10000L
+
+/**
+ * Main game loop tick rate.
+ */
+const val TICK_RATE = 1
+
+/**
  * Pixels per meter.
  */
 const val PPM = 100.0

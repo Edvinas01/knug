@@ -1,6 +1,6 @@
-package com.edd.knug.messaging.events
+package com.edd.knug.events
 
-import com.edd.knug.messaging.Event
+import com.edd.knug.util.messaging.Event
 import org.eclipse.jetty.websocket.api.Session
 
 data class InputEvent(

@@ -1,31 +1,13 @@
 package com.edd.knug.util
 
-import com.google.gson.Gson
 import java.util.*
 
-class Json {
-
-    private val gson = Gson()
+object Json {
 
     /**
-     * Write manually constructed json object to string.
+     * Create a json like hash map.
      */
-    fun write(builder: JsonBuilder.() -> Unit) = write(JsonBuilder().json(builder))
-
-    /**
-     * Write object to json string.
-     */
-    fun write(obj: Any): String = gson.toJson(obj)
-
-    /**
-     * Read json from provided json string.
-     */
-    inline fun <reified T> read(json: String) = read(T::class.java, json)
-
-    /**
-     * Read json from provided json string and cast it to desired type.
-     */
-    fun <T> read(type: Class<T>, json: String): T = gson.fromJson(json, type)
+    fun obj(builder: JsonBuilder.() -> Unit) = JsonBuilder().json(builder)
 }
 
 class JsonBuilder {

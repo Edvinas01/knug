@@ -57,7 +57,7 @@ const addPlayer = (game, state) => {
 
   player.width = state.size.width;
   player.height = state.size.height;
-  player.anchor = new Point(0.5, 0.5);
+  player.anchor.setTo(0.5, 0.5);
   player.userData = {
     name,
     id: state.id,
@@ -145,15 +145,14 @@ class PlayState extends State {
 
       // Sync with server state.
       // https://gafferongames.com/post/snapshot_interpolation/
-      player.rotation = Math.rotateToAngle(player.rotation, desiredRot);
-      player.x = Math.bezierInterpolation([player.x, desiredPos.x], 0.05);
-      player.y = Math.bezierInterpolation([player.y, desiredPos.y], 0.05);
+      player.rotation = Math.rotateToAngle(player.rotation, desiredRot, 0.5);
+      player.x = Math.linearInterpolation([player.x, desiredPos.x], 0.5);
+      player.y = Math.linearInterpolation([player.y, desiredPos.y], 0.5);
 
       // Make names follow players.
       name.x = player.x;
       name.y = player.y - name.height - (player.height / 2);
     });
-
 
     this.webSocket.send(JSON.stringify({
       type: 'input',
@@ -177,7 +176,6 @@ class PlayState extends State {
     } else if (message.type === 'state') {
       message.players.forEach((remote) => {
         const existing = this.players[remote.id];
-
         if (existing) {
           const { rotation, position } = remote;
           existing.userData = {
@@ -186,10 +184,19 @@ class PlayState extends State {
               x: position.x,
               y: this.game.world.height - position.y,
             },
-            desiredRot: rotation,
+            desiredRot: -rotation,
           };
         }
       });
+    } else if (message.type === 'connect') {
+      this.players[message.id] = addPlayer(this.game, message);
+    } else if (message.type === 'disconnect') {
+      const connected = this.players[message.id];
+      if (connected) {
+        connected.destroy();
+        connected.userData.name.destroy();
+        delete this.players[message.id];
+      }
     }
   }
 }
